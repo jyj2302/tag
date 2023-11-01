@@ -183,3 +183,18 @@ elif "Farewells" in mood or "sad" in mood:
   print("I'll recommend a song : 송하예 니소식")
 
 #예제들 더 많아지고 유사한 단어 추출했을 때 결과 참고해서 노래 리스트업하기
+
+model = Word2Vec.load('tag_w2v.model')
+
+mood = input("Tell me the word that comes to mind now: ")
+
+similar_words = model.wv.most_similar(mood, topn=3)
+
+if "alcohol" in [word for word, _ in similar_words]:
+    print("I'll recommend a song: 임창정 - 소주 한 잔")
+elif "sad" in [word for word, _ in similar_words]:
+    print("I'll recommend a song: 송하예 니소식")
+else:
+    print("Sorry, I don't recognize that mood.")
+
+#굳이 우리가 일일이 쓰지 않아도 바로 유사 단어에 맞게 노래 추천해주는 코드 위에꺼

@@ -1,1 +1,794 @@
-3
+#1
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.models import Model
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+#2
+from gensim.models import Word2Vec
+
+#3
+corpus = ['Beer at the Hanriver',
+          'Beer is alcohol',
+          'Beer at rooftop',
+          'Beer at the pub',
+          'Cocktail is alcohol',
+          'Soju is alcohol']
+
+#4
+def remove_stop_words(corpus):
+  stop_words = ['are', 'is', 'have', 'is', 'at', 'the', 'and']
+  result = []
+
+  for text in corpus:
+    tmp = text.split(' ')
+    for stop_word in stop_words:
+      if stop_word in tmp:
+        tmp.remove(stop_word)
+    result.append(' '.join(tmp))
+  return result
+
+corpus = remove_stop_words(corpus)
+corpus
+
+#5
+words = []
+for text in corpus:
+ for word in text.split(' '):
+  words.append(word)
+
+words = set(words)
+words
+
+#6
+word2int = {}
+for i, word in enumerate(words):
+  word2int[word]= i
+
+word2int
+
+#7
+sentences = []
+for sentence in corpus:
+  sentences.append(sentence.split())
+
+WINDOW_SIZE = 3
+data = []
+for sentence in sentences:
+  for idx, word in enumerate(sentence):
+    for neighbor in sentence[max(idx-WINDOW_SIZE, 0): min(idx-WINDOW_SIZE, len(sentence))+1]:
+      if neighbor != word:
+        data.append([word, neighbor])
+
+#8
+model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=0)
+
+#9
+model.save("alcohol_w2v.model")
+
+#10
+df = pd.DataFrame(data, columns = ['input', 'label'])
+df.head(14)
+
+#11
+ONE_HOT_DIM = len(words)
+
+def to_one_hot_encoding(data_point_index):
+  one_hot_encoding = np.zeros(ONE_HOT_DIM)
+  one_hot_encoding[data_point_index] = 1
+  return one_hot_encoding
+
+X = []
+Y = []
+
+for x, y in zip(df['input'], df['label']):
+  X.append(to_one_hot_encoding(word2int[x]))
+  Y.append(to_one_hot_encoding(word2int[y]))
+
+X_train = np.array(X)
+Y_train = np.array(Y)
+
+#12
+encoding_dim = 2
+input_word = Input(shape=(ONE_HOT_DIM,))
+encoded = Dense(encoding_dim, use_bias=False)(input_word)
+decoded = Dense(ONE_HOT_DIM, activation='softmax')(encoded)
+
+w2v_model = Model(input_word, decoded)
+w2v_model.compile(optimizer='adam', loss='categorical_crossentropy')
+
+#13
+w2v_model.fit(X_train, Y_train, epochs=1000, shuffle=True, verbose=1)
+
+#14
+vectors = w2v_model.layers[1].weights[0].numpy().tolist()
+vectors
+
+#15
+w2v_df =pd.DataFrame(vectors, columns=['x1', 'x2'])
+w2v_df['word'] = list(words)
+w2v_df = w2v_df[['word', 'x1', 'x2']]
+w2v_df
+
+#16
+fig, ax = plt.subplots()
+
+for word, x1, x2 in zip(w2v_df['word'], w2v_df['x1'], w2v_df['x2']):
+  ax.annotate(word, (x1,x2))
+
+PADDING = 1.0
+x_axis_min = np.min(vectors, axis=0)[0] - PADDING
+y_axis_min = np.min(vectors, axis=0)[1] - PADDING
+x_axis_max = np.max(vectors, axis=0)[0] + PADDING
+y_axis_max = np.max(vectors, axis=0)[1] + PADDING
+
+plt.xlim(x_axis_min, x_axis_max)
+plt.ylim(y_axis_min, y_axis_max)
+plt.rcParams["figure.figsize"] = (9,9)
+
+plt.show()
+
+#17
+corpus = ['Hip-hop have swag',
+          'swag is cool',
+          'Hip-hop is cool']
+
+#18
+def remove_stop_words(corpus):
+  stop_words = ['are', 'is', 'have', 'is', 'at', 'the', 'and']
+  result = []
+
+  for text in corpus:
+    tmp = text.split(' ')
+    for stop_word in stop_words:
+      if stop_word in tmp:
+        tmp.remove(stop_word)
+    result.append(' '.join(tmp))
+  return result
+
+corpus = remove_stop_words(corpus)
+corpus
+
+#19
+words = []
+for text in corpus:
+ for word in text.split(' '):
+  words.append(word)
+
+words = set(words)
+words
+
+#20
+word2int = {}
+for i, word in enumerate(words):
+  word2int[word]= i
+
+word2int
+
+#21
+sentences = []
+for sentence in corpus:
+  sentences.append(sentence.split())
+
+WINDOW_SIZE = 3
+data = []
+for sentence in sentences:
+  for idx, word in enumerate(sentence):
+    for neighbor in sentence[max(idx-WINDOW_SIZE, 0): min(idx-WINDOW_SIZE, len(sentence))+1]:
+      if neighbor != word:
+        data.append([word, neighbor])
+
+#22
+model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=0)
+
+#23
+model.save("swag_w2v.model")
+
+#24
+df = pd.DataFrame(data, columns = ['input', 'label'])
+df.head(14)
+
+#25
+ONE_HOT_DIM = len(words)
+
+def to_one_hot_encoding(data_point_index):
+  one_hot_encoding = np.zeros(ONE_HOT_DIM)
+  one_hot_encoding[data_point_index] = 1
+  return one_hot_encoding
+
+X = []
+Y = []
+
+for x, y in zip(df['input'], df['label']):
+  X.append(to_one_hot_encoding(word2int[x]))
+  Y.append(to_one_hot_encoding(word2int[y]))
+
+X_train = np.array(X)
+Y_train = np.array(Y)
+
+#26
+encoding_dim = 2
+input_word = Input(shape=(ONE_HOT_DIM,))
+encoded = Dense(encoding_dim, use_bias=False)(input_word)
+decoded = Dense(ONE_HOT_DIM, activation='softmax')(encoded)
+
+w2v_model = Model(input_word, decoded)
+w2v_model.compile(optimizer='adam', loss='categorical_crossentropy')
+
+#27
+w2v_model.fit(X_train, Y_train, epochs=1000, shuffle=True, verbose=1)
+
+#28
+vectors = w2v_model.layers[1].weights[0].numpy().tolist()
+vectors
+
+#29
+w2v_df =pd.DataFrame(vectors, columns=['x1', 'x2'])
+w2v_df['word'] = list(words)
+w2v_df = w2v_df[['word', 'x1', 'x2']]
+w2v_df
+
+#30
+fig, ax = plt.subplots()
+
+for word, x1, x2 in zip(w2v_df['word'], w2v_df['x1'], w2v_df['x2']):
+  ax.annotate(word, (x1,x2))
+
+PADDING = 1.0
+x_axis_min = np.min(vectors, axis=0)[0] - PADDING
+y_axis_min = np.min(vectors, axis=0)[1] - PADDING
+x_axis_max = np.max(vectors, axis=0)[0] + PADDING
+y_axis_max = np.max(vectors, axis=0)[1] + PADDING
+
+plt.xlim(x_axis_min, x_axis_max)
+plt.ylim(y_axis_min, y_axis_max)
+plt.rcParams["figure.figsize"] = (9,9)
+
+plt.show()
+
+#31
+corpus = ['Raining and Rainy day are lonely',
+          'Rainy day are cold']
+
+#32
+def remove_stop_words(corpus):
+  stop_words = ['are', 'is', 'have', 'is', 'at', 'the', 'and']
+  result = []
+
+  for text in corpus:
+    tmp = text.split(' ')
+    for stop_word in stop_words:
+      if stop_word in tmp:
+        tmp.remove(stop_word)
+    result.append(' '.join(tmp))
+  return result
+
+corpus = remove_stop_words(corpus)
+corpus
+
+#33
+words = []
+for text in corpus:
+ for word in text.split(' '):
+  words.append(word)
+
+words = set(words)
+words
+
+#34
+word2int = {}
+for i, word in enumerate(words):
+  word2int[word]= i
+
+word2int
+
+#35
+sentences = []
+for sentence in corpus:
+  sentences.append(sentence.split())
+
+WINDOW_SIZE = 3
+data = []
+for sentence in sentences:
+  for idx, word in enumerate(sentence):
+    for neighbor in sentence[max(idx-WINDOW_SIZE, 0): min(idx-WINDOW_SIZE, len(sentence))+1]:
+      if neighbor != word:
+        data.append([word, neighbor])
+
+#36
+model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=0)
+
+#37
+model.save("Raining_w2v.model")
+
+#38
+df = pd.DataFrame(data, columns = ['input', 'label'])
+df.head(14)
+
+#39
+ONE_HOT_DIM = len(words)
+
+def to_one_hot_encoding(data_point_index):
+  one_hot_encoding = np.zeros(ONE_HOT_DIM)
+  one_hot_encoding[data_point_index] = 1
+  return one_hot_encoding
+
+X = []
+Y = []
+
+for x, y in zip(df['input'], df['label']):
+  X.append(to_one_hot_encoding(word2int[x]))
+  Y.append(to_one_hot_encoding(word2int[y]))
+
+X_train = np.array(X)
+Y_train = np.array(Y)
+
+#40
+encoding_dim = 2
+input_word = Input(shape=(ONE_HOT_DIM,))
+encoded = Dense(encoding_dim, use_bias=False)(input_word)
+decoded = Dense(ONE_HOT_DIM, activation='softmax')(encoded)
+
+w2v_model = Model(input_word, decoded)
+w2v_model.compile(optimizer='adam', loss='categorical_crossentropy')
+
+#41
+w2v_model.fit(X_train, Y_train, epochs=1000, shuffle=True, verbose=1)
+
+#42
+vectors = w2v_model.layers[1].weights[0].numpy().tolist()
+vectors
+
+#43
+w2v_df =pd.DataFrame(vectors, columns=['x1', 'x2'])
+w2v_df['word'] = list(words)
+w2v_df = w2v_df[['word', 'x1', 'x2']]
+w2v_df
+
+#44
+fig, ax = plt.subplots()
+
+for word, x1, x2 in zip(w2v_df['word'], w2v_df['x1'], w2v_df['x2']):
+  ax.annotate(word, (x1,x2))
+
+PADDING = 1.0
+x_axis_min = np.min(vectors, axis=0)[0] - PADDING
+y_axis_min = np.min(vectors, axis=0)[1] - PADDING
+x_axis_max = np.max(vectors, axis=0)[0] + PADDING
+y_axis_max = np.max(vectors, axis=0)[1] + PADDING
+
+plt.xlim(x_axis_min, x_axis_max)
+plt.ylim(y_axis_min, y_axis_max)
+plt.rcParams["figure.figsize"] = (9,9)
+
+plt.show()
+
+#45
+corpus = ['Farewells are sad',
+          'Sadness is tears',
+          'Farewells are tears']
+
+#46
+def remove_stop_words(corpus):
+  stop_words = ['are', 'is', 'have', 'is', 'at', 'the', 'and']
+  result = []
+
+  for text in corpus:
+    tmp = text.split(' ')
+    for stop_word in stop_words:
+      if stop_word in tmp:
+        tmp.remove(stop_word)
+    result.append(' '.join(tmp))
+  return result
+
+corpus = remove_stop_words(corpus)
+corpus
+
+#47
+words = []
+for text in corpus:
+ for word in text.split(' '):
+  words.append(word)
+
+words = set(words)
+words
+
+#48
+word2int = {}
+for i, word in enumerate(words):
+  word2int[word]= i
+
+word2int
+
+#49
+sentences = []
+for sentence in corpus:
+  sentences.append(sentence.split())
+
+WINDOW_SIZE = 3
+data = []
+for sentence in sentences:
+  for idx, word in enumerate(sentence):
+    for neighbor in sentence[max(idx-WINDOW_SIZE, 0): min(idx-WINDOW_SIZE, len(sentence))+1]:
+      if neighbor != word:
+        data.append([word, neighbor])
+
+#50
+model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=0)
+
+#51
+model.save("sad_w2v.model")
+
+#52
+df = pd.DataFrame(data, columns = ['input', 'label'])
+df.head(14)
+
+#53
+ONE_HOT_DIM = len(words)
+
+def to_one_hot_encoding(data_point_index):
+  one_hot_encoding = np.zeros(ONE_HOT_DIM)
+  one_hot_encoding[data_point_index] = 1
+  return one_hot_encoding
+
+X = []
+Y = []
+
+for x, y in zip(df['input'], df['label']):
+  X.append(to_one_hot_encoding(word2int[x]))
+  Y.append(to_one_hot_encoding(word2int[y]))
+
+X_train = np.array(X)
+Y_train = np.array(Y)
+
+#54
+encoding_dim = 2
+input_word = Input(shape=(ONE_HOT_DIM,))
+encoded = Dense(encoding_dim, use_bias=False)(input_word)
+decoded = Dense(ONE_HOT_DIM, activation='softmax')(encoded)
+
+w2v_model = Model(input_word, decoded)
+w2v_model.compile(optimizer='adam', loss='categorical_crossentropy')
+
+#55
+w2v_model.fit(X_train, Y_train, epochs=1000, shuffle=True, verbose=1)
+
+#56
+vectors = w2v_model.layers[1].weights[0].numpy().tolist()
+vectors
+
+#57
+w2v_df =pd.DataFrame(vectors, columns=['x1', 'x2'])
+w2v_df['word'] = list(words)
+w2v_df = w2v_df[['word', 'x1', 'x2']]
+w2v_df
+
+#58
+fig, ax = plt.subplots()
+
+for word, x1, x2 in zip(w2v_df['word'], w2v_df['x1'], w2v_df['x2']):
+  ax.annotate(word, (x1,x2))
+
+PADDING = 1.0
+x_axis_min = np.min(vectors, axis=0)[0] - PADDING
+y_axis_min = np.min(vectors, axis=0)[1] - PADDING
+x_axis_max = np.max(vectors, axis=0)[0] + PADDING
+y_axis_max = np.max(vectors, axis=0)[1] + PADDING
+
+plt.xlim(x_axis_min, x_axis_max)
+plt.ylim(y_axis_min, y_axis_max)
+plt.rcParams["figure.figsize"] = (9,9)
+
+plt.show()
+
+#59
+corpus = ['refinement is sensational',
+          'Trendy is sensational',
+          'refinement is Trendy',
+          'unique is sensational',
+          'attractive is sensational',
+          'groove is sensational']
+
+#60
+def remove_stop_words(corpus):
+  stop_words = ['are', 'is', 'have', 'is', 'at', 'the', 'and']
+  result = []
+
+  for text in corpus:
+    tmp = text.split(' ')
+    for stop_word in stop_words:
+      if stop_word in tmp:
+        tmp.remove(stop_word)
+    result.append(' '.join(tmp))
+  return result
+
+corpus = remove_stop_words(corpus)
+corpus
+
+#61
+words = []
+for text in corpus:
+ for word in text.split(' '):
+  words.append(word)
+
+words = set(words)
+words
+
+#62
+word2int = {}
+for i, word in enumerate(words):
+  word2int[word]= i
+
+word2int
+
+#63
+sentences = []
+for sentence in corpus:
+  sentences.append(sentence.split())
+
+WINDOW_SIZE = 3
+data = []
+for sentence in sentences:
+  for idx, word in enumerate(sentence):
+    for neighbor in sentence[max(idx-WINDOW_SIZE, 0): min(idx-WINDOW_SIZE, len(sentence))+1]:
+      if neighbor != word:
+        data.append([word, neighbor])
+
+#64
+model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=0)
+
+#65
+model.save("Trendy_w2v.model")
+
+#66
+df = pd.DataFrame(data, columns = ['input', 'label'])
+df.head(14)
+
+#67
+ONE_HOT_DIM = len(words)
+
+def to_one_hot_encoding(data_point_index):
+  one_hot_encoding = np.zeros(ONE_HOT_DIM)
+  one_hot_encoding[data_point_index] = 1
+  return one_hot_encoding
+
+X = []
+Y = []
+
+for x, y in zip(df['input'], df['label']):
+  X.append(to_one_hot_encoding(word2int[x]))
+  Y.append(to_one_hot_encoding(word2int[y]))
+
+X_train = np.array(X)
+Y_train = np.array(Y)
+
+#68
+encoding_dim = 2
+input_word = Input(shape=(ONE_HOT_DIM,))
+encoded = Dense(encoding_dim, use_bias=False)(input_word)
+decoded = Dense(ONE_HOT_DIM, activation='softmax')(encoded)
+
+w2v_model = Model(input_word, decoded)
+w2v_model.compile(optimizer='adam', loss='categorical_crossentropy')
+
+#69
+w2v_model.fit(X_train, Y_train, epochs=1000, shuffle=True, verbose=1)
+
+#70
+vectors = w2v_model.layers[1].weights[0].numpy().tolist()
+vectors
+
+#71
+w2v_df =pd.DataFrame(vectors, columns=['x1', 'x2'])
+w2v_df['word'] = list(words)
+w2v_df = w2v_df[['word', 'x1', 'x2']]
+w2v_df
+
+#72
+fig, ax = plt.subplots()
+
+for word, x1, x2 in zip(w2v_df['word'], w2v_df['x1'], w2v_df['x2']):
+  ax.annotate(word, (x1,x2))
+
+PADDING = 1.0
+x_axis_min = np.min(vectors, axis=0)[0] - PADDING
+y_axis_min = np.min(vectors, axis=0)[1] - PADDING
+x_axis_max = np.max(vectors, axis=0)[0] + PADDING
+y_axis_max = np.max(vectors, axis=0)[1] + PADDING
+
+plt.xlim(x_axis_min, x_axis_max)
+plt.ylim(y_axis_min, y_axis_max)
+plt.rcParams["figure.figsize"] = (9,9)
+
+plt.show()
+
+#73
+corpus = ['Joy is happiness',
+          'happiness is pleasure',
+          'Joy is pleasure',
+          'Joy is smile',
+          'smile is pleasure']
+
+#74
+def remove_stop_words(corpus):
+  stop_words = ['are', 'is', 'have', 'is', 'at', 'the', 'and']
+  result = []
+
+  for text in corpus:
+    tmp = text.split(' ')
+    for stop_word in stop_words:
+      if stop_word in tmp:
+        tmp.remove(stop_word)
+    result.append(' '.join(tmp))
+  return result
+
+corpus = remove_stop_words(corpus)
+corpus
+
+#75
+words = []
+for text in corpus:
+ for word in text.split(' '):
+  words.append(word)
+
+words = set(words)
+words
+
+#76
+word2int = {}
+for i, word in enumerate(words):
+  word2int[word]= i
+
+word2int
+
+#77
+sentences = []
+for sentence in corpus:
+  sentences.append(sentence.split())
+
+WINDOW_SIZE = 3
+data = []
+for sentence in sentences:
+  for idx, word in enumerate(sentence):
+    for neighbor in sentence[max(idx-WINDOW_SIZE, 0): min(idx-WINDOW_SIZE, len(sentence))+1]:
+      if neighbor != word:
+        data.append([word, neighbor])
+
+#78
+model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=0)
+
+#79
+model.save("Joy_w2v.model")
+
+#80
+df = pd.DataFrame(data, columns = ['input', 'label'])
+df.head(14)
+
+#81
+ONE_HOT_DIM = len(words)
+
+def to_one_hot_encoding(data_point_index):
+  one_hot_encoding = np.zeros(ONE_HOT_DIM)
+  one_hot_encoding[data_point_index] = 1
+  return one_hot_encoding
+
+X = []
+Y = []
+
+for x, y in zip(df['input'], df['label']):
+  X.append(to_one_hot_encoding(word2int[x]))
+  Y.append(to_one_hot_encoding(word2int[y]))
+
+X_train = np.array(X)
+Y_train = np.array(Y)
+
+#82
+encoding_dim = 2
+input_word = Input(shape=(ONE_HOT_DIM,))
+encoded = Dense(encoding_dim, use_bias=False)(input_word)
+decoded = Dense(ONE_HOT_DIM, activation='softmax')(encoded)
+
+w2v_model = Model(input_word, decoded)
+w2v_model.compile(optimizer='adam', loss='categorical_crossentropy')
+
+#83
+w2v_model.fit(X_train, Y_train, epochs=1000, shuffle=True, verbose=1)
+
+#84
+vectors = w2v_model.layers[1].weights[0].numpy().tolist()
+vectors
+
+#85
+w2v_df =pd.DataFrame(vectors, columns=['x1', 'x2'])
+w2v_df['word'] = list(words)
+w2v_df = w2v_df[['word', 'x1', 'x2']]
+w2v_df
+
+#86
+fig, ax = plt.subplots()
+
+for word, x1, x2 in zip(w2v_df['word'], w2v_df['x1'], w2v_df['x2']):
+  ax.annotate(word, (x1,x2))
+
+PADDING = 1.0
+x_axis_min = np.min(vectors, axis=0)[0] - PADDING
+y_axis_min = np.min(vectors, axis=0)[1] - PADDING
+x_axis_max = np.max(vectors, axis=0)[0] + PADDING
+y_axis_max = np.max(vectors, axis=0)[1] + PADDING
+
+plt.xlim(x_axis_min, x_axis_max)
+plt.ylim(y_axis_min, y_axis_max)
+plt.rcParams["figure.figsize"] = (9,9)
+
+plt.show()
+
+#87
+import gensim
+
+# 파일 경로와 각 모델의 이름을 딕셔너리로 저장합니다.
+model_paths = {
+    'swag': '/content/swag_w2v.model',
+    'Joy': '/content/Joy_w2v.model',
+    'Raining': '/content/Raining_w2v.model',
+    'Trendy': '/content/Trendy_w2v.model',
+    'alcohol': '/content/alcohol_w2v.model',
+    'sad': '/content/sad_w2v.model',
+    # 여기에 필요한 만큼의 모델과 파일 경로를 추가할 수 있습니다.
+}
+
+models = {}
+
+# 모델을 불러와 딕셔너리에 저장합니다.
+for mood, model_path in model_paths.items():
+    try:
+        models[mood] = gensim.models.Word2Vec.load(model_path)
+    except FileNotFoundError:
+        print(f"File not found for {mood} model. Please provide the correct file path.")
+    except Exception as e:
+        print(f"Error loading {mood} model:", e)
+
+while True:
+    mood = input("What's it like? (type 'exit' to quit): ")
+
+    if mood.lower() == 'exit':
+        print("See ya!")
+        break
+
+    try:
+        similar_words = []
+        # 모든 모델에서 입력된 단어와 유사한 단어들을 찾아 리스트에 추가합니다.
+        for model_name, model in models.items():
+            try:
+                similar_words.extend(model.wv.most_similar(mood, topn=4))
+            except KeyError:
+                pass  # KeyError 발생 시 아무 동작도 하지 않음
+
+        # 중복된 유사한 단어들을 제거합니다.
+        similar_words = list(set(similar_words))
+
+        # 입력된 단어를 유사한 단어 리스트에 추가합니다.
+        similar_words.append((mood, 1.0))
+
+        # 핵심 단어를 유사한 단어 리스트에서 제외합니다.
+        similar_words = [word for word in similar_words if word[0] != mood]
+
+        # 감정 또는 분위기에 맞는 음악을 추천합니다.
+        if "alcohol" in [word for word, _ in similar_words]:
+            print("I've got just the song for your mood ;): 임창정 - 소주 한 잔")
+        elif "sad" in [word for word, _ in similar_words]:
+            print("I've got just the song for your mood ;): 송하예 - 니소식")
+        elif "Raining" in [word for word, _ in similar_words]:
+            print("I've got just the song for your mood ;): 태연 - Rain")
+        elif "swag" in [word for word, _ in similar_words]:
+            print("I've got just the song for your mood ;): 비와이- Day Day")
+        elif "Trendy" in [word for word, _ in similar_words]:
+            print("I've got just the song for your mood ;): 크러쉬 - Rush Hour")
+        elif "Joy" in [word for word, _ in similar_words]:
+            print("I've got just the song for your mood ;): 아이유 - 라일락")
+        else:
+            print("Sorry, I don't recognize that mood.")
+    except KeyError:
+        print("Word not found in the vocabulary. Try another word.")

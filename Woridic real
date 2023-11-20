@@ -1,0 +1,230 @@
+#1
+
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.models import Model
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from gensim.models import Word2Vec
+
+def remove_stop_words(corpus):
+    stop_words = ['are', 'is', 'have', 'is', 'at', 'the', 'and']
+    result = []
+
+    for text in corpus:
+        tmp = text.split(' ')
+        for stop_word in stop_words:
+            if stop_word in tmp:
+                tmp.remove(stop_word)
+        result.append(' '.join(tmp))
+    return result
+
+def create_word2vec_model(corpus, model_name):
+    corpus = remove_stop_words(corpus)
+
+    words = []
+    for text in corpus:
+        for word in text.split(' '):
+            words.append(word)
+
+    words = set(words)
+
+    word2int = {}
+    for i, word in enumerate(words):
+        word2int[word] = i
+
+    sentences = []
+    for sentence in corpus:
+        sentences.append(sentence.split())
+
+    WINDOW_SIZE = 3
+    data = []
+    for sentence in sentences:
+        for idx, word in enumerate(sentence):
+            for neighbor in sentence[max(idx - WINDOW_SIZE, 0): min(idx - WINDOW_SIZE, len(sentence)) + 1]:
+                if neighbor != word:
+                    data.append([word, neighbor])
+
+    model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=0)
+    model.save(f"{model_name}_w2v.model")
+
+    df = pd.DataFrame(data, columns=['input', 'label'])
+
+    ONE_HOT_DIM = len(words)
+
+    X = []
+    Y = []
+
+    for x, y in zip(df['input'], df['label']):
+        X.append(to_one_hot_encoding(word2int[x], ONE_HOT_DIM))
+        Y.append(to_one_hot_encoding(word2int[y], ONE_HOT_DIM))
+
+    X_train = np.array(X)
+    Y_train = np.array(Y)
+
+    encoding_dim = 2
+    input_word = Input(shape=(ONE_HOT_DIM,))
+    encoded = Dense(encoding_dim, use_bias=False)(input_word)
+    decoded = Dense(ONE_HOT_DIM, activation='softmax')(encoded)
+
+    w2v_model = Model(input_word, decoded)
+    w2v_model.compile(optimizer='adam', loss='categorical_crossentropy')
+
+    w2v_model.fit(X_train, Y_train, epochs=1000, shuffle=True, verbose=0)
+
+    vectors = w2v_model.layers[1].weights[0].numpy().tolist()
+
+    w2v_df = pd.DataFrame(vectors, columns=['x1', 'x2'])
+    w2v_df['word'] = list(words)
+    w2v_df = w2v_df[['word', 'x1', 'x2']]
+
+    plot_word_vectors(w2v_df)
+
+    return w2v_df
+
+def to_one_hot_encoding(data_point_index, one_hot_dim):
+    one_hot_encoding = np.zeros(one_hot_dim)
+    one_hot_encoding[data_point_index] = 1
+    return one_hot_encoding
+
+
+def plot_word_vectors(w2v_df):
+    fig, ax = plt.subplots()
+
+    for word, x1, x2 in zip(w2v_df['word'], w2v_df['x1'], w2v_df['x2']):
+        ax.annotate(word, (x1, x2))
+
+    PADDING = 1.0
+    x_axis_min = np.min(w2v_df[['x1', 'x2']].values, axis=0)[0] - PADDING
+    y_axis_min = np.min(w2v_df[['x1', 'x2']].values, axis=0)[1] - PADDING
+    x_axis_max = np.max(w2v_df[['x1', 'x2']].values, axis=0)[0] + PADDING
+    y_axis_max = np.max(w2v_df[['x1', 'x2']].values, axis=0)[1] + PADDING
+
+    plt.xlim(x_axis_min, x_axis_max)
+    plt.ylim(y_axis_min, y_axis_max)
+    plt.rcParams["figure.figsize"] = (9, 9)
+
+    plt.show()
+
+
+# Alcohol Model
+alcohol_corpus = ['Beer at the Hanriver',
+                  'Beer is Alcohol',
+                  'Beer at Rooftop',
+                  'Beer at the Pub',
+                  'Cocktail is Alcohol',
+                  'Soju is Alcohol']
+
+alcohol_w2v_df = create_word2vec_model(alcohol_corpus, 'Alcohol')
+
+# Swag Model
+swag_corpus = ['Hip-hop have Swag',
+               'Swag is Cool',
+               'Hip-hop is Cool']
+
+swag_w2v_df = create_word2vec_model(swag_corpus, 'Swag')
+
+# Raining Model
+raining_corpus = ['Raining and Rainy day are Lonely',
+                  'Rainy day are Cold']
+
+raining_w2v_df = create_word2vec_model(raining_corpus, 'Raining')
+
+# Sad Model
+sad_corpus = ['Farewells are Sad',
+              'Sadness is Tears',
+              'Farewells are Tears']
+
+sad_w2v_df = create_word2vec_model(sad_corpus, 'Sad')
+
+# Trendy Model
+trendy_corpus = ['Refinement is Sensational',
+                 'Trendy is Sensational',
+                 'Refinement is Trendy',
+                 'Unique is Sensational',
+                 'Attractive is Sensational',
+                 'Groove is Sensational']
+
+trendy_w2v_df = create_word2vec_model(trendy_corpus, 'Trendy')
+
+# Joy Model
+joy_corpus = ['Joy is Happiness',
+              'Happiness is Pleasure',
+              'Joy is Pleasure',
+              'Joy is Smile',
+              'Smile is Pleasure']
+
+joy_w2v_df = create_word2vec_model(joy_corpus, 'Joy')
+
+#2
+
+import gensim
+import random
+
+# 모델 파일 경로와 각 모델의 Recommended_list를 딕셔너리로 저장합니다.
+model_paths = {
+    'Swag': '/content/Swag_w2v.model',
+    'Joy': '/content/Joy_w2v.model',
+    'Raining': '/content/Raining_w2v.model',
+    'Trendy': '/content/Trendy_w2v.model',
+    'Alcohol': '/content/Alcohol_w2v.model',
+    'Sad': '/content/Sad_w2v.model',
+    # 여기에 필요한 만큼의 모델과 파일 경로를 추가할 수 있습니다.
+}
+
+Recommended_lists = {
+    'Swag': ['That That (prod. & feat. SUGA of BTS) - 싸이', 'Gang Gang Gang - Fleeky Bang', 'RINDAMAN - PENOMECO', 'uh-uh - 허성현', 'Rush Hour - 크러쉬', 'If I Die tomorrow - 빈지노', '사이렌 Remix - 호미들', '하기나 해(feat. Loco) - GRAY', 'METEOR - 창모', 'NOT SORRY (Feat. pH-1)  - 이영지'],
+    'Joy': ['라일락 - 아이유', 'Love Lee - AKMU', '사랑인가 봐 - 멜로망스', 'Cupid - FIFTY FIFTY', 'Square - 백예린', 'Weekend - 태연', 'SMiLEY - 최예나', '한 페이지가 될 수 있게 - DAY6', '팡파레 - 다비치', 'Power Up - Red Velvet'],
+    'Raining': ['우산 - 윤하', 'Rain Drop - 아이유', '비 - 폴킴', 'Rain - 태연', '비가 오는 날엔 - 비스트', '비와 당신 - 럼블피쉬', '잠 못 드는 밤 비는 내리고 - 아이유', '비가 온다 – 정승환', '먹구름 - 윤하', '비도 오고 그래서 - 헤이즈'],
+    'Trendy': ['정이라고 하자 (Feat. 10CM) -  BIG Naughty', 'Polaroid Love - ENHYPEN', '아무노래 - 지코', 'Attention - NewJeans (뉴진스)', 'Nerdy Love (feat.백예린) - pH-1', 'LOVE me - 비오', '걘 아니야 Pt.2 - PENOMECO', 'free love - HONNE', '나빠 – 크러쉬', 'Boat - 죠지'],
+    'Alcohol': ['술 한잔 해요 - 지아', '취기를 빌려 – 산들', '소주 한잔 - 임창정', '술이야 - 바이브', '오늘 취하면 (Feat. 창모) (Prod. by SUGA) - SURAN (수란)', '취중전화 - 알리', '취한 밤 - 린', '혼술 - JUNIEL (주니엘)', '술이 달다 (feat. Crush) - 에픽하이', '취한 밤 (Feat. 진실 of Mad Soul Child) - 오반'],
+    'Sad': ['도망가자 - 선우정아', '이별택시 - 김연우', 'Love poem - 아이유', '위로 - 권진아', '한숨 - 이하이', '혼자라고 생각말기 - 김보경', '오르막길 - 정인, 윤종신', '걱정말아요 그대 - 이적', '누구도 괜찮지 않은 밤 - 옥상달빛', '마음 - 폴킴'],
+    # 여기에 필요한 만큼의 모델과 Recommended_list를 추가할 수 있습니다.
+}
+
+# 모델을 불러와 딕셔너리에 저장합니다.
+models = {}
+
+# 불러온 모델 확인
+model_names = model_paths.keys()
+print("Loaded models:", model_names)
+
+for mood, model_path in model_paths.items():
+    try:
+        models[mood] = gensim.models.Word2Vec.load(model_path)
+    except FileNotFoundError:
+        print(f"File not found for {mood} model. Please provide the correct file path.")
+    except Exception as e:
+        print(f"Error loading {mood} model:", e)
+
+def recommend_songs(mood, num_songs=5):
+    if mood in Recommended_lists:
+        recommended_songs = random.sample(Recommended_lists[mood], min(num_songs, len(Recommended_lists[mood])))
+        print(f"I've got just the song for your mood ;): {recommended_songs}")
+    else:
+        print("Sorry, I don't have recommendations for that mood.")
+
+# Example usage in the while loop
+while True:
+    user_response = input("What is it like? (Type 'exit' to quit): ")
+
+    if user_response.lower() == 'exit':
+        print("See ya!")
+        break
+
+    # 사용자가 입력한 검색어의 맨 앞글자를 대문자로 변경
+    user_response = user_response.capitalize()
+
+    found_in_models = []
+    for mood, model in models.items():
+        if user_response in model.wv.index_to_key:
+            found_in_models.append(mood)
+
+    if found_in_models:
+        for mood in found_in_models:
+            recommend_songs(mood)
+    else:
+        print("I don't have recommendations for the entered word.")
